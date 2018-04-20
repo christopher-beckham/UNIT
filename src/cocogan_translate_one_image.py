@@ -3,10 +3,14 @@
 Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
-from datasets import *
+#from datasets import *
+import datasets
 import os
 import sys
-from trainers import *
+import torch
+#from trainers import *
+from torch.autograd import Variable
+import trainers
 import cv2
 import torchvision
 from tools import *
@@ -37,8 +41,11 @@ def main(argv):
   else:
     dataset = config.datasets['train_b']
   data = []
-  exec ("data = %s(dataset)" % dataset['class_name'])
-  exec("trainer=%s(config.hyperparameters)" % config.hyperparameters['trainer'])
+  #exec ("data = %s(dataset)" % dataset['class_name'])
+  data = getattr(datasets, dataset['class_name'])(dataset)
+
+  trainer_class = getattr(trainers, config.hyperparameters['trainer'])
+  trainer = trainer_class(config.hyperparameters)
 
   # Prepare network
   trainer.gen.load_state_dict(torch.load(opts.weights))
@@ -60,8 +67,9 @@ def main(argv):
 
   output_image_name = opts.output_image_name
   directory = os.path.dirname(output_image_name)
-  if not os.path.exists(directory):
-      os.makedirs(directory)
+  if directory != '':
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
   if opts.trans_alone == 0:
     assembled_images = torch.cat((final_data, output_data[0]), 3)
