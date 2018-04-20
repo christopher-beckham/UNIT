@@ -45,7 +45,7 @@ class COCOGANTrainer(nn.Module):
     x_bab, shared_bab = self.gen.forward_a2b(x_ba)
     x_aba, shared_aba = self.gen.forward_b2a(x_ab)
     outs_a, outs_b = self.dis(x_ba,x_ab)
-    for it, (out_a, out_b) in enumerate(itertools.izip(outs_a, outs_b)):
+    for it, (out_a, out_b) in enumerate(zip(outs_a, outs_b)):
       outputs_a = nn.functional.sigmoid(out_a)
       outputs_b = nn.functional.sigmoid(out_b)
       all_ones = Variable(torch.ones((outputs_a.size(0))).cuda(self.gpu))
@@ -70,16 +70,16 @@ class COCOGANTrainer(nn.Module):
                  hyperparameters['kl_cycle_link_w'] * (enc_bab_loss + enc_aba_loss)
     total_loss.backward()
     self.gen_opt.step()
-    self.gen_enc_loss = enc_loss.data.cpu().numpy()[0]
-    self.gen_enc_bab_loss = enc_bab_loss.data.cpu().numpy()[0]
-    self.gen_enc_aba_loss = enc_aba_loss.data.cpu().numpy()[0]
-    self.gen_ad_loss_a = ad_loss_a.data.cpu().numpy()[0]
-    self.gen_ad_loss_b = ad_loss_b.data.cpu().numpy()[0]
-    self.gen_ll_loss_a = ll_loss_a.data.cpu().numpy()[0]
-    self.gen_ll_loss_b = ll_loss_b.data.cpu().numpy()[0]
-    self.gen_ll_loss_aba = ll_loss_aba.data.cpu().numpy()[0]
-    self.gen_ll_loss_bab = ll_loss_bab.data.cpu().numpy()[0]
-    self.gen_total_loss = total_loss.data.cpu().numpy()[0]
+    self.gen_enc_loss = enc_loss.data.item()
+    self.gen_enc_bab_loss = enc_bab_loss.data.item()
+    self.gen_enc_aba_loss = enc_aba_loss.data.item()
+    self.gen_ad_loss_a = ad_loss_a.data.item()
+    self.gen_ad_loss_b = ad_loss_b.data.item()
+    self.gen_ll_loss_a = ll_loss_a.data.item()
+    self.gen_ll_loss_b = ll_loss_b.data.item()
+    self.gen_ll_loss_aba = ll_loss_aba.data.item()
+    self.gen_ll_loss_bab = ll_loss_bab.data.item()
+    self.gen_total_loss = total_loss.data.item()
     return (x_aa, x_ba, x_ab, x_bb, x_aba, x_bab)
 
   def dis_update(self, images_a, images_b, hyperparameters):
@@ -90,7 +90,7 @@ class COCOGANTrainer(nn.Module):
     res_a, res_b = self.dis(data_a,data_b)
     # res_true_a, res_true_b = self.dis(images_a,images_b)
     # res_fake_a, res_fake_b = self.dis(x_ba, x_ab)
-    for it, (this_a, this_b) in enumerate(itertools.izip(res_a, res_b)):
+    for it, (this_a, this_b) in enumerate(zip(res_a, res_b)):
       out_a = nn.functional.sigmoid(this_a)
       out_b = nn.functional.sigmoid(this_b)
       out_true_a, out_fake_a = torch.split(out_a, out_a.size(0) // 2, 0)
@@ -115,10 +115,11 @@ class COCOGANTrainer(nn.Module):
       fake_b_acc = _compute_fake_acc(out_fake_b)
       exec( 'self.dis_true_acc_%d = 0.5 * (true_a_acc + true_b_acc)' %it)
       exec( 'self.dis_fake_acc_%d = 0.5 * (fake_a_acc + fake_b_acc)' %it)
-    loss = hyperparameters['gan_w'] * ( ad_loss_a + ad_loss_b )
-    loss.backward()
+    loss = ad_loss_a + ad_loss_b
+    (loss*hyperparameters['gan_w']).backward()
     self.dis_opt.step()
-    self.dis_loss = loss.data.cpu().numpy()[0]
+    #self.dis_loss = loss.data.cpu().numpy()[0]
+    self.dis_loss = loss.data.item()
     return
 
   def assemble_outputs(self, images_a, images_b, network_outputs):
@@ -133,17 +134,33 @@ class COCOGANTrainer(nn.Module):
     return torch.cat((images_a[0:1, ::], x_aa[0:1, ::], x_ab[0:1, ::], x_aba[0:1, ::],
                       images_b[0:1, ::], x_bb[0:1, ::], x_ba[0:1, ::], x_bab[0:1, ::]), 3)
 
-  def resume(self, snapshot_prefix):
-    dirname = os.path.dirname(snapshot_prefix)
-    last_model_name = get_model_list(dirname,"gen")
+  def resume(self, snapshot_folder):
+    #dirname = os.path.dirname(snapshot_folder)
+    last_model_name = get_model_list(snapshot_folder,"gen")
     if last_model_name is None:
       return 0
     self.gen.load_state_dict(torch.load(last_model_name))
     iterations = int(last_model_name[-12:-4])
-    last_model_name = get_model_list(dirname, "dis")
+    last_model_name = get_model_list(snapshot_folder, "dis")
     self.dis.load_state_dict(torch.load(last_model_name))
     print('Resume from iteration %d' % iterations)
     return iterations
+
+  '''
+  def resume(self, filename):
+    # Load the generator state.
+    filename_g = filename
+    self.gen.load_state_dict(torch.load(filename_g))
+    # Find .pkl, strip it out, and extract the iter
+    # number.
+    idx = filename_g.find('.pkl')
+    iterations = int(filename_g[0:idx][:-8])
+    # Load the discriminator state.
+    filename_d = filename_g.replace("_gen_","_dis_")
+    self.dis.load_state_dict(torch.load(filename_d))
+    print('Resume from iteration %d' % iterations)
+    return iterations
+  '''
 
   def save(self, snapshot_prefix, iterations):
     gen_filename = '%s_gen_%08d.pkl' % (snapshot_prefix, iterations + 1)
