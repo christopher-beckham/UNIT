@@ -17,6 +17,9 @@ class dataset_celeba(data.Dataset):
     self.image_size = specs['crop_image_size']
     self.random_crop = True
     self.random_mirror = True
+    self.resize = None
+    if 'resize' in specs:
+      self.resize = specs['resize']
     list_fullpath = os.path.join(self.root, self.list_name)
     with open(list_fullpath) as f:
       content = f.readlines()
@@ -34,6 +37,10 @@ class dataset_celeba(data.Dataset):
     img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_BGR2RGB)
     h, w, c = img.shape
     img = np.float32(img)
+    if self.resize is not None:
+      img = cv2.resize(img,
+                       (self.resize, self.resize))
+      h,w,c = img.shape
     if test == True:
       x_offset = np.int((w - self.image_size) / 2)
       y_offset = np.int((h - self.image_size) / 2)
