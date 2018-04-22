@@ -6,7 +6,7 @@ from datasets import *
 import os
 import torchvision
 from tensorboard import summary
-def get_data_loader(conf, batch_size):
+def get_data_loader(conf, batch_size, num_workers=0):
   dataset = []
   print("dataset=%s(conf)" % conf['class_name'])
   #exec ("dataset=%s(conf)" % conf['class_name'])
@@ -17,7 +17,7 @@ def get_data_loader(conf, batch_size):
     dataset = dataset_celeba(conf)
   else:
     raise Exception("TODO")
-  return torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0) # 10
+  return torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
 def prepare_snapshot_folder(snapshot_prefix):
   snapshot_directory = os.path.dirname(snapshot_prefix)

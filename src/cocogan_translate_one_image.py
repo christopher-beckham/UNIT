@@ -35,13 +35,11 @@ def main(argv):
   # Read training parameters from the yaml file
   hyperparameters = {}
   for key in config.hyperparameters:
-    exec ('hyperparameters[\'%s\'] = config.hyperparameters[\'%s\']' % (key,key))
+    hyperparameters[key] = config.hyperparameters[key]
   if opts.a2b==1:
     dataset = config.datasets['train_a']
   else:
     dataset = config.datasets['train_b']
-  data = []
-  #exec ("data = %s(dataset)" % dataset['class_name'])
   data = getattr(datasets, dataset['class_name'])(dataset)
 
   trainer_class = getattr(trainers, config.hyperparameters['trainer'])
@@ -52,14 +50,16 @@ def main(argv):
   trainer.cuda(opts.gpu)
   trainer.gen.eval()
 
-
   full_img_name = opts.image_name
   img = data._load_one_image(full_img_name,test=True)
   raw_data = img.transpose((2, 0, 1))  # convert to HWC
   final_data = torch.FloatTensor((raw_data / 255.0 - 0.5) * 2)
   final_data = final_data.contiguous()
-  final_data = Variable(final_data.view(1,final_data.size(0),final_data.size(1),final_data.size(2))).cuda(opts.gpu)
-  # trainer.gen.eval()
+  final_data = Variable(
+    final_data.view(1,
+                    final_data.size(0),
+                    final_data.size(1),
+                    final_data.size(2))).cuda(opts.gpu)
   if opts.a2b == 1:
     output_data = trainer.gen.forward_a2b(final_data)
   else:

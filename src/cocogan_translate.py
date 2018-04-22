@@ -4,10 +4,12 @@ Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
 from __future__ import print_function
+import datasets
+from torch.autograd import Variable
 from common import *
 import sys
 import os
-from trainers import *
+import trainers
 import cv2
 import torchvision
 from tools import *
@@ -31,13 +33,14 @@ def main(argv):
   # Read training parameters from the yaml file
   hyperparameters = {}
   for key in config.hyperparameters:
-    exec ('hyperparameters[\'%s\'] = config.hyperparameters[\'%s\']' % (key,key))
+    #exec ('hyperparameters[\'%s\'] = config.hyperparameters[\'%s\']' % (key,key))
+    hyperparameters[key] = config.hyperparameters[key]
 
   if opts.a2b==1:
     dataset = config.datasets['train_a']
   else:
     dataset = config.datasets['train_b']
-  exec ("data = %s(dataset)" % dataset['class_name'])
+  data = getattr(datasets, dataset['class_name'])(dataset)
   root = dataset['root']
   folder = dataset['folder']
   list = dataset['list_name']
@@ -47,17 +50,13 @@ def main(argv):
   image_list = [x.strip().split(' ')[0] for x in content]
   image_list.sort()
 
-
-  cmd = "trainer=%s(config.hyperparameters)" % config.hyperparameters['trainer']
-  local_dict = locals()
-  exec(cmd,globals(),local_dict)
-  trainer = local_dict['trainer']
-
+  trainer_class = getattr(trainers, config.hyperparameters['trainer'])
+  trainer = trainer_class(config.hyperparameters)  
 
   # Prepare network
   trainer.gen.load_state_dict(torch.load(opts.weights))
   trainer.cuda(opts.gpu)
-  # trainer.gen.eval()
+  trainer.gen.eval()
 
   for image_name in image_list:
     print(image_name)

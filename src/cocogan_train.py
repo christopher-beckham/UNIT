@@ -7,8 +7,10 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from __future__ import print_function
 from common import get_data_loader, prepare_snapshot_and_image_folder, write_html, write_loss
 from tools import *
-from trainers import *
-from datasets import *
+import trainers
+from torch.autograd import Variable
+#from datasets import *
+import os
 import sys
 import torchvision
 #from itertools import izip
@@ -34,13 +36,17 @@ def main(argv):
     batch_size = config.hyperparameters['batch_size']
     max_iterations = config.hyperparameters['max_iterations']
 
-    train_loader_a = get_data_loader(config.datasets['train_a'], batch_size)
-    train_loader_b = get_data_loader(config.datasets['train_b'], batch_size)
+    train_loader_a = get_data_loader(
+        config.datasets['train_a'],
+        batch_size,
+        config.hyperparameters['num_workers'])
+    train_loader_b = get_data_loader(
+        config.datasets['train_b'],
+        batch_size,
+        config.hyperparameters['num_workers'])
 
-    cmd = "trainer=%s(config.hyperparameters)" % config.hyperparameters['trainer']
-    local_dict = locals()
-    exec(cmd,globals(),local_dict)
-    trainer = local_dict['trainer']
+    trainer_class = getattr(trainers, config.hyperparameters['trainer'])
+    trainer = trainer_class(config.hyperparameters)
 
     ######################################################################################################################
     # Setup logger and repare image outputs
